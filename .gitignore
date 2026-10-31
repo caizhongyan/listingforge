@@ -9,3 +9,6 @@ local-dev.mjs
 .vercel
 # 内部部署指引（不部署）
 deploy-console.html
+# 密钥（严禁上传）
+密钥_仅本地勿上传.md
+KEYS.md
