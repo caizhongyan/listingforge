@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>支付成功 — ListingForge</title>
+<link href="/style.css" rel="stylesheet">
+<script src="/track.js"></script>
+</head>
+<body>
+<div class="wrap" style="max-width:560px;text-align:center;padding-top:80px">
+  <div class="card">
+    <h1 style="color:var(--accent)">✓ 支付成功</h1>
+    <p id="msg" class="sub">正在验证您的订单…</p>
+    <p style="margin-top:18px"><a class="primary" href="/">返回工具</a></p>
+  </div>
+  <footer class="foot">
+    <a href="/">ListingForge</a> · 需要帮助？
+    <div><a href="/privacy.html">隐私政策</a> · <a href="/terms.html">服务条款</a> · support@listingforge.com</div>
+    <div class="legal">Operated by CZY Tools (Zhongyan Cai), sole proprietorship, Wuhan, China.</div>
+  </footer>
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const track = (n, p) => { try { window.pp && window.pp.track && window.pp.track(n, p); } catch (e) {} };
+  track('purchase_return');
+  fetch('/api/verify?' + params.toString())
+    .then(r => r.json())
+    .then(j => {
+      const msg = document.getElementById('msg');
+      if (j.ok && j.token) {
+        localStorage.setItem('lf_token', j.token);
+        track('purchase_verified');
+        msg.textContent = '已解锁！正在返回工具…';
+        setTimeout(() => { location.href = '/?paid=1'; }, 1400);
+      } else {
+        track('purchase_verify_failed', { reason: String(j.error || 'no_token').slice(0, 40) });
+        msg.textContent = '验证失败。若已扣款，请邮件联系 support@listingforge.com 并附订单号。';
+      }
+    })
+    .catch(() => {
+      track('purchase_verify_failed', { reason: 'network' });
+      document.getElementById('msg').textContent = '网络错误，请返回首页重试。';
+    });
+</script>
+</body>
+</html>

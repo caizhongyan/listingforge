@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ListingForge · 一键生成多语言商品文案</title>
+  <meta name="description" content="面向中国跨境卖家的 AI 商品文案工具：粘贴产品信息，一键生成英文/德文/日文多语言 Listing（标题、卖点、描述、关键词），符合 Amazon/Shopify 平台规则。" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ListingForge</div>
+    <div class="tagline">跨境商品文案 · 一键多语言</div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <h1>生成你的多语言商品文案</h1>
+      <p class="sub">粘贴产品信息，选择平台与语言，AI 直接产出符合平台规则的标题、卖点、描述与关键词。</p>
+
+      <label class="field">
+        <span>产品信息</span>
+        <textarea id="info" rows="6" placeholder="例：无线蓝牙耳机，主动降噪，续航 30 小时，蓝牙 5.3，IPX5 防水，适合运动通勤，售价 $29.99"></textarea>
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span>销售平台</span>
+          <select id="platform">
+            <option value="amazon">Amazon</option>
+            <option value="shopify">Shopify</option>
+            <option value="standalone">独立站</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>目标语言</span>
+          <select id="lang">
+            <option value="en">英语</option>
+            <option value="de">德语</option>
+            <option value="ja">日语</option>
+            <option value="fr">法语</option>
+            <option value="es">西班牙语</option>
+          </select>
+        </label>
+      </div>
+
+      <button id="genBtn" class="primary">生成文案</button>
+      <p id="status" class="status" hidden></p>
+    </section>
+
+    <section class="card result" id="result" hidden>
+      <h2>生成结果</h2>
+      <div class="block">
+        <div class="block-head"><span>标题</span><button class="copy" data-target="title">复制</button></div>
+        <div id="title" class="text"></div>
+      </div>
+      <div class="block">
+        <div class="block-head"><span>卖点（5 条）</span><button class="copy" data-target="bullets">复制</button></div>
+        <ul id="bullets" class="text"></ul>
+      </div>
+      <div class="block">
+        <div class="block-head"><span>商品描述</span><button class="copy" data-target="desc">复制</button></div>
+        <div id="desc" class="text"></div>
+      </div>
+      <div class="block">
+        <div class="block-head"><span>关键词（SEO）</span><button class="copy" data-target="keywords">复制</button></div>
+        <div id="keywords" class="text"></div>
+      </div>
+      <div class="lock-note" id="lockNote" hidden>
+        上方为<b>预览</b>。支付 <b>¥39</b> 一次性解锁：完整 5 条卖点 + 描述 + 关键词 + 一键复制 + 无限生成。
+        <br><button class="primary" id="unlockBtn" style="margin-top:10px;width:auto;padding:10px 20px">🔒 立即解锁</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <a href="/privacy.html">隐私政策</a> · <a href="/terms.html">服务条款</a> · support@listingforge.com
+    <div class="legal">Operated by CZY Tools (Zhongyan Cai), sole proprietorship, Wuhan, China</div>
+  </footer>
+
+  <!-- 付费墙 -->
+  <div class="paywall" id="paywall">
+    <div class="box">
+      <span class="close" id="pwClose">×</span>
+      <h3>解锁 ListingForge 完整版</h3>
+      <div class="price">¥39 <small>/ 一次性</small></div>
+      <ul>
+        <li>无限次生成多语言商品文案</li>
+        <li>标题 / 5 条卖点 / 描述 / 关键词 一键复制</li>
+        <li>覆盖 Amazon / Shopify / 独立站 规则</li>
+        <li>英文 / 德文 / 日文 / 法文 / 西班牙文</li>
+      </ul>
+      <button class="primary" id="pwPay">立即解锁</button>
+      <p class="pw-status" id="pwStatus"></p>
+      <div class="lock-badge">由 Creem 安全收款 · 人民币提现至支付宝</div>
+    </div>
+  </div>
+
+  <script src="/track.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
