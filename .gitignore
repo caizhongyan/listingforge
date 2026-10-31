@@ -7,3 +7,5 @@ node_modules
 # 本地预览（不部署）
 local-dev.mjs
 .vercel
+# 内部部署指引（不部署）
+deploy-console.html

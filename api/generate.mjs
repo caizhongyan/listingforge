@@ -53,7 +53,12 @@ async function callLLM(messages) {
     ? 'https://api.deepseek.com/v1/chat/completions'
     : 'https://api.openai.com/v1/chat/completions';
   const key = provider === 'deepseek' ? process.env.DEEPSEEK_API_KEY : process.env.OPENAI_API_KEY;
-  const model = provider === 'deepseek' ? (process.env.DEEPSEEK_MODEL || 'deepseek-chat') : (process.env.OPENAI_MODEL || 'gpt-4o');
+  // 关键取舍（2026-10-31 实测）：DeepSeek 该账号可用模型仅 deepseek-flash / deepseek-v4-pro。
+  // 两者都是推理型模型，耗时实测：v4-pro 约 22–37s；flash 约 11s。
+  // Vercel Hobby 的 Serverless Function 默认上限仅 10s，用 v4-pro 会必然超时失败。
+  // 因此默认选 flash：速度可接受、成本更低，质量与 pro 接近。
+  // 若要追求极致文案质量，可设 DEEPSEEK_MODEL=deepseek-v4-pro，但需配合更长的函数超时（付费计划）。
+  const model = provider === 'deepseek' ? (process.env.DEEPSEEK_MODEL || 'deepseek-flash') : (process.env.OPENAI_MODEL || 'gpt-4o');
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
