@@ -20,7 +20,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Creem 未配置：请在 Vercel 设置 CREEM_API_KEY / CREEM_PRODUCT_ID' });
   }
 
-  const successUrl = `${appUrl}/success`;
+  // 2026-11-01 线上实测修正：Vercel 静态文件不会把 /success 自动映射到 success.html，
+  // 原写法导致支付成功后回跳到 404——客户付了钱却打不开成功页、拿不到解锁凭证。
+  // 此处直接指向真实文件路径 /success.html（已加 cleanUrls 兜底）。
+  const successUrl = `${appUrl}/success.html`;
 
   try {
     const r = await fetch(`${apiBase}/v1/checkouts`, {
