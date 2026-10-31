@@ -69,10 +69,30 @@ async function callLLM(messages) {
   return j.choices[0].message.content;
 }
 
+// 读取请求体：兼容各种运行时形态。
+// 2026-10-31 上线实测踩坑：Vercel Node 运行时会先把 JSON 体自动解析到 req.body，
+// 且 **不存在 req.json() 方法**。原写法 `await req.json()` 必然抛错并落到 catch，
+// 表现为「线上点生成一律报 bad request」，而本地 Node≥18 / 部分框架下却正常，
+// 属于典型的「本地能跑线上炸」。此处做三重兜底，彻底免疫。
+async function readJson(req) {
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'object') return req.body;
+    try { return JSON.parse(req.body); } catch (e) { /* 继续兜底 */ }
+  }
+  if (typeof req.json === 'function') {
+    try { return await req.json(); } catch (e) { /* 继续兜底 */ }
+  }
+  try {
+    const chunks = [];
+    for await (const c of req) chunks.push(Buffer.from(c));
+    const raw = Buffer.concat(chunks).toString('utf8').trim();
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) { return {}; }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' });
-  let body;
-  try { body = await req.json(); } catch (e) { return res.status(400).json({ error: 'bad request' }); }
+  const body = await readJson(req);
   const { info, platform = 'amazon', lang = 'en' } = body || {};
   if (!info || info.trim().length < 5) return res.status(400).json({ error: '请填写产品信息' });
 
