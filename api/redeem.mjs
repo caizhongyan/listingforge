@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     {
       customer_id: customerId,
       recovered: true,
-      exp: Date.now() + 1000 * 60 * 60 * 24 * 365
+      exp: Date.now() + 1000 * 60 * 60 * 24 * 365 * 100
     },
     secret
   );

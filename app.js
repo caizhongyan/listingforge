@@ -272,7 +272,7 @@
     if (restorePending()) {
       setStatus('支付成功，已解锁全部内容！你的结果已恢复，可直接复制使用。解锁码已保存在本浏览器，建议在页面底部「解锁码 / 恢复购买」中复制备份。', false);
     } else {
-      setStatus('支付成功，已解锁全部功能！解锁码已保存在本浏览器，建议在页面底部「解锁码 / 恢复购买」中复制备份（有效期 1 年）。', false);
+      setStatus('支付成功，已解锁全部功能！解锁码已保存在本浏览器，建议在页面底部「解锁码 / 恢复购买」中复制备份（长期有效，不限次数）。', false);
     }
     try { sessionStorage.removeItem(PENDING_KEY); } catch (e) {}
     t('purchase_return', {});

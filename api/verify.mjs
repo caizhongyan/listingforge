@@ -57,7 +57,10 @@ export default async function handler(req, res) {
         customer_id: (data.customer && data.customer.id) || '',
         product_id: (data.product && data.product.id) || '',
         iat: Date.now(),
-        exp: Date.now() + 1000 * 60 * 60 * 24 * 365
+        // 2026-11-01 决策：产品为「一次付费、长期可用」，不再对客户设 1 年期限。
+        // 技术上 HMAC token 无法吊销、也无法续期，1 年期限只会让老客户某天突然被锁死且无从补救，
+        // 属于自设的售后炸弹。此处设为 100 年（等同永久），history 里已付款用户的 1 年期 token 仍然有效。
+        exp: Date.now() + 1000 * 60 * 60 * 24 * 365 * 100
       },
       secret
     );
