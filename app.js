@@ -83,6 +83,12 @@
     var text = info.value.trim();
     if (text.length < 5) { setStatus('请先填写产品信息', true); return; }
     btn.disabled = true; setStatus('生成中…', false);
+    // 生成耗时约 10-25 秒，用计时器给出进度反馈，避免用户以为卡死
+    var t0 = Date.now();
+    var timer = setInterval(function () {
+      var s = Math.round((Date.now() - t0) / 1000);
+      setStatus('AI 正在撰写 ' + platform.value + ' ' + lang.value + ' 文案… 已用 ' + s + ' 秒（通常需 10-25 秒）', false);
+    }, 1000);
     t('generate_click', { platform: platform.value, lang: lang.value });
     try {
       var r = await fetch('/api/generate', {
@@ -100,6 +106,7 @@
       setStatus(e.message || '生成失败，请重试', true);
       t('error', { where: 'generate', msg: e.message });
     } finally {
+      clearInterval(timer);
       btn.disabled = false;
     }
   });
