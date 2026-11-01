@@ -36,6 +36,14 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: '未配置 CREEM_API_KEY' });
 
   const body = await readJson(req);
+
+  // 2026-11-01 关闭：同一 Creem 账号下存在多个产品（不同域名），
+  // 「是本账号客户」不能证明「购买的是本产品」，会被其他产品的买家白拿解锁。
+  // 仅在账号确认只有单一产品时才可临时开启：Vercel 环境变量 ALLOW_EMAIL_RECOVERY=true
+  if (String(process.env.ALLOW_EMAIL_RECOVERY || '').toLowerCase() !== 'true') {
+    return res.status(403).json({ error: '该功能暂未开放，请使用解锁码恢复，或联系 support@skuwrite.com' });
+  }
+
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
   if (rateLimited(ip)) return res.status(429).json({ error: '尝试过于频繁，请 10 分钟后再试' });
 

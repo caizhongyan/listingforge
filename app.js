@@ -239,29 +239,9 @@
       }
     });
 
-    document.getElementById('rcEmailBtn').addEventListener('click', async function () {
-      var st = document.getElementById('rcEmailStatus');
-      var v = document.getElementById('rcEmail').value.trim();
-      if (!v) { st.textContent = '请填写下单时使用的邮箱'; return; }
-      st.textContent = '正在核对购买记录…';
-      this.disabled = true;
-      try {
-        var r = await fetch('/api/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: v }) });
-        var j = await r.json();
-        if (!r.ok || !j.token) { st.textContent = j.error || '找回失败，请稍后重试'; t('recover_email_fail', {}); return; }
-        localStorage.setItem(TOKEN_KEY, j.token);
-        document.body.classList.add('unlocked');
-        document.getElementById('rcMine').hidden = false;
-        document.getElementById('rcCode').value = j.token;
-        st.textContent = '已通过邮箱恢复解锁，正在刷新…';
-        t('recover_email_ok', {});
-        setTimeout(function () { location.reload(); }, 900);
-      } catch (e) {
-        st.textContent = '网络错误，请重试';
-      } finally {
-        this.disabled = false;
-      }
-    });
+    // 邮箱自助找回已下线：同一 Creem 账号下有多个产品，仅凭「是本账号客户」无法证明买的是本产品，
+    // 会被买其他产品的用户白拿。恢复方式保留为「解锁码粘贴」+ 人工客服。
+    // 正确解法见 HANDOVER.md 第九节：Creem Webhook 落库后按订单核验。
 
     document.getElementById('rcBtn').addEventListener('click', async function () {
       var st = document.getElementById('rcStatus');
