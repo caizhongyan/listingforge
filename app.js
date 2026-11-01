@@ -239,6 +239,30 @@
       }
     });
 
+    document.getElementById('rcOrderBtn').addEventListener('click', async function () {
+      var st = document.getElementById('rcOrderStatus');
+      var v = document.getElementById('rcOrder').value.trim();
+      if (!v) { st.textContent = '请填写订单号'; return; }
+      st.textContent = '正在向 Creem 核对订单…';
+      this.disabled = true;
+      try {
+        var r = await fetch('/api/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: v }) });
+        var j = await r.json();
+        if (!r.ok || !j.token) { st.textContent = j.error || '找回失败，请稍后重试'; t('recover_order_fail', {}); return; }
+        localStorage.setItem(TOKEN_KEY, j.token);
+        document.body.classList.add('unlocked');
+        document.getElementById('rcMine').hidden = false;
+        document.getElementById('rcCode').value = j.token;
+        st.textContent = '已通过订单号恢复解锁，正在刷新…';
+        t('recover_order_ok', {});
+        setTimeout(function () { location.reload(); }, 900);
+      } catch (e) {
+        st.textContent = '网络错误，请重试';
+      } finally {
+        this.disabled = false;
+      }
+    });
+
     document.getElementById('rcBtn').addEventListener('click', async function () {
       var st = document.getElementById('rcStatus');
       var v = document.getElementById('rcInput').value.trim();
