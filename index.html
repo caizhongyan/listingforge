@@ -114,7 +114,7 @@
   </main>
 
   <footer class="foot">
-    <a href="/privacy.html">隐私政策</a> · <a href="/terms.html">服务条款</a> · support@skuwrite.com
+    <a href="/privacy.html">隐私政策</a> · <a href="/terms.html">服务条款</a> · support@skuwrite.com · <a href="#" id="recoverLink">解锁码 / 恢复购买</a>
     <div class="legal">Operated by CZY Tools (Zhongyan Cai), sole proprietorship, Wuhan, China</div>
   </footer>
 
@@ -133,6 +133,28 @@
       <button class="primary" id="pwPay">立即解锁</button>
       <p class="pw-status" id="pwStatus"></p>
       <div class="lock-badge">由 Creem 安全收款 · 人民币提现至支付宝</div>
+    </div>
+  </div>
+
+  <!-- 解锁码 / 换设备恢复 -->
+  <div class="paywall" id="recoverModal">
+    <div class="box" style="text-align:left">
+      <span class="close" id="rcClose">×</span>
+      <h3 style="text-align:center">解锁码 / 恢复购买</h3>
+      <p class="sub" style="font-size:12.5px;text-align:center">解锁码是你的购买凭证，有效期 1 年。清缓存、换浏览器或换电脑后，粘贴此码即可恢复完整版。</p>
+
+      <div id="rcMine" hidden>
+        <div class="block-head"><span>我的解锁码</span><button class="copy" id="rcCopy">复制</button></div>
+        <textarea id="rcCode" rows="3" readonly></textarea>
+        <p class="pw-status" style="margin-bottom:14px">建议复制后存到微信收藏或笔记里，避免清理浏览器后丢失。</p>
+      </div>
+
+      <label class="field">
+        <span>粘贴解锁码恢复</span>
+        <textarea id="rcInput" rows="3" placeholder="粘贴以 eyJ 开头的那一长串解锁码"></textarea>
+      </label>
+      <button class="primary" id="rcBtn" style="width:100%">恢复解锁</button>
+      <p class="pw-status" id="rcStatus"></p>
     </div>
   </div>
 

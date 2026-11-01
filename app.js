@@ -207,14 +207,68 @@
   var unlockBtn = document.getElementById('unlockBtn');
   if (unlockBtn) unlockBtn.addEventListener('click', openPaywall);
 
+  /* ---------- 解锁码 / 换设备恢复 ---------- */
+  var rcModal = document.getElementById('recoverModal');
+  function openRecover() {
+    var tk = getToken();
+    document.getElementById('rcMine').hidden = !tk;
+    document.getElementById('rcCode').value = tk;
+    document.getElementById('rcInput').value = '';
+    document.getElementById('rcStatus').textContent = '';
+    rcModal.classList.add('show');
+    t('recover_view', {});
+  }
+  if (rcModal) {
+    document.getElementById('recoverLink').addEventListener('click', function (e) { e.preventDefault(); openRecover(); });
+    document.getElementById('rcClose').addEventListener('click', function () { rcModal.classList.remove('show'); });
+    rcModal.addEventListener('click', function (e) { if (e.target === rcModal) rcModal.classList.remove('show'); });
+
+    document.getElementById('rcCopy').addEventListener('click', function () {
+      var self = this;
+      var v = getToken();
+      if (!v) return;
+      function done() { self.textContent = '已复制'; setTimeout(function () { self.textContent = '复制'; }, 1500); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(v).then(done, function () {
+          var ta = document.getElementById('rcCode'); ta.select();
+          try { document.execCommand('copy'); done(); } catch (err) {}
+        });
+      } else {
+        var ta = document.getElementById('rcCode'); ta.select();
+        try { document.execCommand('copy'); done(); } catch (err) {}
+      }
+    });
+
+    document.getElementById('rcBtn').addEventListener('click', async function () {
+      var st = document.getElementById('rcStatus');
+      var v = document.getElementById('rcInput').value.trim();
+      if (!v || v.indexOf('.') < 0) { st.textContent = '请粘贴完整的解锁码'; return; }
+      st.textContent = '正在校验…';
+      try {
+        var r = await fetch('/api/unlock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: v }) });
+        var j = await r.json();
+        if (!j.valid) { st.textContent = '解锁码无效或已过期，请联系 support@skuwrite.com'; t('recover_fail', {}); return; }
+        localStorage.setItem(TOKEN_KEY, v);
+        document.body.classList.add('unlocked');
+        document.getElementById('rcMine').hidden = false;
+        document.getElementById('rcCode').value = v;
+        st.textContent = '已恢复解锁，正在刷新…';
+        t('recover_ok', {});
+        setTimeout(function () { location.reload(); }, 800);
+      } catch (e) {
+        st.textContent = '网络错误，请重试';
+      }
+    });
+  }
+
   /* ---------- 初始化 ---------- */
   if (getToken()) document.body.classList.add('unlocked');
   refreshUnlock();
   if (new URLSearchParams(location.search).get('paid') === '1') {
     if (restorePending()) {
-      setStatus('支付成功，已解锁全部内容！你的结果已恢复，可直接复制使用。', false);
+      setStatus('支付成功，已解锁全部内容！你的结果已恢复，可直接复制使用。解锁码已保存在本浏览器，建议在页面底部「解锁码 / 恢复购买」中复制备份。', false);
     } else {
-      setStatus('支付成功，已解锁全部功能！马上生成你的第一条多语言 Listing 吧。', false);
+      setStatus('支付成功，已解锁全部功能！解锁码已保存在本浏览器，建议在页面底部「解锁码 / 恢复购买」中复制备份（有效期 1 年）。', false);
     }
     try { sessionStorage.removeItem(PENDING_KEY); } catch (e) {}
     t('purchase_return', {});

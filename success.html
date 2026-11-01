@@ -12,7 +12,14 @@
   <div class="card">
     <h1 style="color:var(--accent)">✓ 支付成功</h1>
     <p id="msg" class="sub">正在验证您的订单…</p>
-    <p style="margin-top:18px"><a class="primary" href="/">返回工具</a></p>
+    <div id="done" hidden style="text-align:left;margin-top:10px">
+      <div class="block-head"><span>你的解锁码（请复制保存）</span><button class="copy" id="copyCode">复制</button></div>
+      <textarea id="codeBox" rows="3" readonly></textarea>
+      <p class="sub" style="font-size:12px;margin:8px 0 0">
+        有效期 1 年。换电脑、清缓存或换浏览器后，回到首页底部点「解锁码 / 恢复购买」粘贴此码即可恢复完整版。
+      </p>
+    </div>
+    <p style="margin-top:18px"><a class="primary" href="/?paid=1" id="goBtn">开始生成文案</a></p>
   </div>
   <footer class="foot">
     <a href="/">ListingForge</a> · 需要帮助？
@@ -31,8 +38,18 @@
       if (j.ok && j.token) {
         localStorage.setItem('lf_token', j.token);
         track('purchase_verified');
-        msg.textContent = '已解锁！正在返回工具…';
-        setTimeout(() => { location.href = '/?paid=1'; }, 1400);
+        msg.textContent = '已解锁，完整功能已开通。';
+        // 把解锁码亮出来让用户保存——这是换设备后唯一的恢复凭据
+        const box = document.getElementById('codeBox');
+        box.value = j.token;
+        document.getElementById('done').hidden = false;
+        document.getElementById('copyCode').addEventListener('click', function () {
+          const self = this;
+          const done = () => { self.textContent = '已复制'; setTimeout(() => { self.textContent = '复制'; }, 1500); };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(j.token).then(done, () => { box.select(); document.execCommand('copy'); done(); });
+          } else { box.select(); document.execCommand('copy'); done(); }
+        });
       } else {
         track('purchase_verify_failed', { reason: String(j.error || 'no_token').slice(0, 40) });
         msg.textContent = '验证失败。若已扣款，请邮件联系 support@skuwrite.com 并附订单号。';
