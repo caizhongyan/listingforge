@@ -228,3 +228,23 @@ listingforge_deploy_20261031/
 - 支付回跳后的状态提示也会提醒用户去底部备份解锁码
 
 **仍未覆盖的情况**：客户既没保存解锁码、又清空了浏览器 —— 目前只能人工处理（邮箱 support@skuwrite.com）。要做「凭订单号自助找回」，需要确认 Creem API 是否支持按 order_id / 邮箱反查订单，验证通过后再加 `/api/redeem` 接口。
+
+### 9. 自助找回：订单号不可行，改为「购买邮箱」（2026-11-01 实测结论）
+
+**Creem 公开 API v1 的真实形态**（用临时探测接口逐条打过，status/报错原文为证）：
+
+| 路径 | 实测结果 |
+|---|---|
+| `GET /v1/orders` | 404，**该端点不存在** |
+| `GET /v1/transactions` | 400 `transaction_id should not be empty` → 只能按 transaction_id 单条查，无列表 |
+| `GET /v1/checkouts` | 400 `checkout_id should not be empty` → 只能按 checkout_id 单条查 |
+| `GET /v1/customers` | 400 `Either customer_id or email must be provided` → **支持邮箱查询** ✅ |
+
+**结论**：客户手里的收据订单号（`ORD-1A194C...`）在 API 层面查不到，也不是 checkout_id（实测 404）。订单号自助找回**不可行**，已改为**邮箱找回**：`/api/redeem` 收 {email} → `GET /v1/customers?email=` → 命中即签发新解锁码。
+
+**重要前提（务必记住）**：该判断成立的前提是「本 Creem 账号只有本产品一个」，所以「是本账号客户」≈「买过本产品」。
+⚠️ **一旦上线第二个产品，此逻辑立即失效**，必须改为：Creem Webhook 监听 checkout.completed → 落库（Vercel KV / Supabase）→ 按订单核验。
+
+安全措施：服务端持有 Key、IP 限流 5 次/10 分钟、邮箱指纹（sha256 前 12 位）留痕日志。
+
+**遗留验证**：需用真实付款邮箱跑通一次成功分支（用不存在的邮箱已测得 404，格式错误测得 400）。
