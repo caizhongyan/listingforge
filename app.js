@@ -111,6 +111,39 @@
     }
   });
 
+  // 中文对照：仅供卖家核对阅读，不进入复制内容
+  function zhNode(text) {
+    var d = document.createElement('div');
+    d.className = 'zh';
+    d.textContent = text;
+    return d;
+  }
+
+  var zhLoading = false;
+  async function loadZh(j) {
+    if (!j || j.zh || !isUnlocked() || zhLoading) return;
+    zhLoading = true;
+    try {
+      var texts = [j.title].concat(j.bullets || [], [j.description || '']);
+      var r = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts: texts, token: getToken() })
+      });
+      if (!r.ok) return;
+      var d = await r.json();
+      if (!d.zh || !d.zh.length || lastResult !== j) return;
+      var n = (j.bullets || []).length;
+      j.zh = { title: d.zh[0] || '', bullets: d.zh.slice(1, 1 + n), description: d.zh[1 + n] || '' };
+      render(j);
+      t('zh_loaded', {});
+    } catch (e) {
+      /* 中文对照失败不影响主结果 */
+    } finally {
+      zhLoading = false;
+    }
+  }
+
   function render(j) {
     result.hidden = false;
     var unlocked = isUnlocked();
@@ -120,7 +153,12 @@
     var ul = document.getElementById('bullets'); ul.innerHTML = '';
     var bullets = (j.bullets || []);
     var showN = unlocked ? bullets.length : Math.min(2, bullets.length);
-    for (var i = 0; i < showN; i++) { var li = document.createElement('li'); li.textContent = bullets[i]; ul.appendChild(li); }
+    for (var i = 0; i < showN; i++) {
+      var li = document.createElement('li');
+      li.textContent = bullets[i];
+      if (unlocked && j.zh && j.zh.bullets && j.zh.bullets[i]) li.appendChild(zhNode(j.zh.bullets[i]));
+      ul.appendChild(li);
+    }
     if (!unlocked && bullets.length > 2) {
       var more = document.createElement('li');
       more.className = 'muted';
@@ -129,8 +167,13 @@
     }
 
     var desc = j.description || '';
-    document.getElementById('desc').textContent = unlocked ? desc : (desc.length > 80 ? desc.slice(0, 80) + '…' : desc);
+    var descEl = document.getElementById('desc');
+    descEl.textContent = unlocked ? desc : (desc.length > 80 ? desc.slice(0, 80) + '…' : desc);
+    if (unlocked && j.zh && j.zh.description) descEl.appendChild(zhNode(j.zh.description));
     document.getElementById('keywords').textContent = unlocked ? (j.keywords || []).join(', ') : '（支付后解锁）';
+
+    var titleEl = document.getElementById('title');
+    if (unlocked && j.zh && j.zh.title) titleEl.appendChild(zhNode(j.zh.title));
 
     var lock = document.getElementById('lockNote');
     if (lock) lock.hidden = unlocked;
@@ -138,6 +181,8 @@
     document.querySelectorAll('.copy').forEach(function (b) {
       b.textContent = unlocked ? '复制' : '🔒解锁复制';
     });
+
+    if (unlocked) loadZh(j); // 已解锁：后台补中文对照，不阻塞英文结果展示
   }
 
   /* ---------- 复制（含 iOS 兼容） ---------- */
@@ -145,7 +190,10 @@
     b.addEventListener('click', function () {
       if (!isUnlocked()) { openPaywall(); return; }
       var el = document.getElementById(b.getAttribute('data-target'));
-      var text = el.innerText || '';
+      // 复制时剔除中文对照，只带走纯目标语言内容
+      var clone = el.cloneNode(true);
+      Array.prototype.forEach.call(clone.querySelectorAll('.zh'), function (n) { n.parentNode.removeChild(n); });
+      var text = clone.innerText || '';
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function () { b.textContent = '已复制'; setTimeout(function () { b.textContent = '复制'; }, 1500); });
       } else {

@@ -34,6 +34,7 @@ ul.text{margin:0;padding-left:18px}
 .lock-note{background:rgba(79,140,255,.08);border:1px dashed var(--line);border-radius:10px;padding:14px;margin-top:14px;font-size:13px;color:var(--muted);text-align:center}
 .lock-note b{color:var(--accent)}
 ul.text li.muted{color:var(--muted)}
+.text .zh{display:block;margin-top:5px;font-size:12.5px;line-height:1.65;color:var(--muted);font-weight:400}
 .copy:disabled{opacity:.5;cursor:not-allowed}
 
 .paywall{position:fixed;inset:0;background:rgba(8,10,14,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}

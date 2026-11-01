@@ -1,5 +1,6 @@
 // ListingForge · 生成接口（质量核心）
-// 模型抽象层：默认 openai，可切 claude / deepseek（env: LLM_PROVIDER）
+// 模型调用与请求体解析统一放在 _llm.mjs（generate / translate 共用）
+import { callLLM, readJson } from './_llm.mjs';
 const LANG_NAME = { en: 'English', de: 'German', ja: 'Japanese', fr: 'French', es: 'Spanish' };
 
 const PLATFORM_RULES = {
@@ -32,73 +33,6 @@ title 为商品标题；bullets 为 5 条卖点；description 为商品描述；
     { role: 'system', content: sys },
     { role: 'user', content: user }
   ];
-}
-
-async function callLLM(messages) {
-  const provider = (process.env.LLM_PROVIDER || 'openai').toLowerCase();
-
-  if (provider === 'claude') {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
-        max_tokens: 1200,
-        system: messages[0].content,
-        messages: [{ role: 'user', content: messages[1].content }]
-      })
-    });
-    if (!r.ok) throw new Error('claude:' + (await r.text()).slice(0, 200));
-    const j = await r.json();
-    return j.content[0].text;
-  }
-
-  // OpenAI / DeepSeek 均兼容 chat/completions
-  const url = provider === 'deepseek'
-    ? 'https://api.deepseek.com/v1/chat/completions'
-    : 'https://api.openai.com/v1/chat/completions';
-  const key = provider === 'deepseek' ? process.env.DEEPSEEK_API_KEY : process.env.OPENAI_API_KEY;
-  // 关键取舍（2026-10-31 实测）：DeepSeek 该账号可用模型仅 deepseek-flash / deepseek-v4-pro。
-  // 两者都是推理型模型，耗时实测：v4-pro 约 22–37s；flash 约 11s。
-  // Vercel Hobby 的 Serverless Function 默认上限仅 10s，用 v4-pro 会必然超时失败。
-  // 因此默认选 flash：速度可接受、成本更低，质量与 pro 接近。
-  // 若要追求极致文案质量，可设 DEEPSEEK_MODEL=deepseek-v4-pro，但需配合更长的函数超时（付费计划）。
-  const model = provider === 'deepseek' ? (process.env.DEEPSEEK_MODEL || 'deepseek-flash') : (process.env.OPENAI_MODEL || 'gpt-4o');
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
-    // 注意：DeepSeek 的 flash / v4-pro 均为推理型模型，思维链会占用 token 预算。
-    // 切勿设置较小的 max_tokens（实测 1600 会导致输出被截断、JSON 不完整而解析失败），此处不传，用服务端默认值。
-    body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.7 })
-  });
-  if (!r.ok) throw new Error(provider + ':' + (await r.text()).slice(0, 200));
-  const j = await r.json();
-  return j.choices[0].message.content;
-}
-
-// 读取请求体：兼容各种运行时形态。
-// 2026-10-31 上线实测踩坑：Vercel Node 运行时会先把 JSON 体自动解析到 req.body，
-// 且 **不存在 req.json() 方法**。原写法 `await req.json()` 必然抛错并落到 catch，
-// 表现为「线上点生成一律报 bad request」，而本地 Node≥18 / 部分框架下却正常，
-// 属于典型的「本地能跑线上炸」。此处做三重兜底，彻底免疫。
-async function readJson(req) {
-  if (req.body !== undefined && req.body !== null) {
-    if (typeof req.body === 'object') return req.body;
-    try { return JSON.parse(req.body); } catch (e) { /* 继续兜底 */ }
-  }
-  if (typeof req.json === 'function') {
-    try { return await req.json(); } catch (e) { /* 继续兜底 */ }
-  }
-  try {
-    const chunks = [];
-    for await (const c of req) chunks.push(Buffer.from(c));
-    const raw = Buffer.concat(chunks).toString('utf8').trim();
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) { return {}; }
 }
 
 export default async function handler(req, res) {
