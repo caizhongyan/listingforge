@@ -199,3 +199,19 @@ listingforge_deploy_20261031/
 - 电脑没装系统级 Git，用 WorkBuddy 便携版：`C:/Users/Administrator/.workbuddy/binaries/PortableGit/versions/1.3.0/mingw64/bin/git.exe`
 - GitHub 授权走**设备码流程**（Git 凭据窗口选 `Sign in with a code` → 打开 github.com/login/device 输入码 → Authorize）。浏览器回跳 `127.0.0.1:xxxx` 的方式会 ERR_CONNECTION_REFUSED
 - 凭据已存入 Git Credential Manager，后续 `git push` 可直接执行
+
+### 6. 中文对照阅读（2026-11-01 新增）
+
+付费用户在英文结果基础上，标题/每条卖点/描述下方会多一行**浅灰中文释义**，仅供核对阅读。
+
+- 实现：英文结果先渲染（不拖慢），随后前端异步调 `/api/translate` 补中文，返回后局部重绘
+- `/api/translate` **需要解锁 token**（与 unlock.mjs 同一套 HMAC 校验），非付费用户返回 403，防止被当成免费翻译器
+- 中文对照**不进入复制内容**（复制前会剔除 `.zh` 节点），客户粘贴到后台的仍是纯目标语言文案
+- 新增 `api/_llm.mjs` 共用模块：callLLM + readJson 由 generate / translate 共用，后续加接口直接 import
+
+### 7. 当前遗留风险
+
+**生成耗时 30-42 秒且波动较大**（实测 30.3 / 32.7 / 37.5 / 41.8 秒），距离 Vercel `maxDuration: 60` 的安全余量在收窄。若某次推理耗时超过 60 秒，该次生成会失败（前端提示「生成失败，请稍后重试」）。可行缓解手段（尚未实施）：
+1. 提供「快速模式」开关：短 prompt、输出更短，约 10 秒出稿、质量略降
+2. 进一步压缩输出长度目标
+3. 升级 Vercel 付费计划，把 maxDuration 提到 300s 并换用 deepseek-v4-pro（质量更高但更慢）
