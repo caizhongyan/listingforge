@@ -6,12 +6,12 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'no key' });
 
   const paths = [
-    '/v1/orders',
-    '/v1/orders?limit=1',
-    '/v1/orders?page=1&limit=1',
-    '/v1/checkouts?limit=1',
-    '/v1/products?limit=1',
-    '/v1/customers?limit=1'
+    '/v1/checkouts/ORD-1A194C498535AE13',
+    '/v1/checkouts?checkout_id=ORD-1A194C498535AE13',
+    '/v1/customers?email=test@example.com',
+    '/v1/checkouts?email=test@example.com',
+    '/v1/checkouts?customer_id=test',
+    '/v1/checkouts?product_id=test'
   ];
 
   const out = [];
