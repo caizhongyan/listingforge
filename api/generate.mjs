@@ -71,7 +71,9 @@ async function callLLM(messages) {
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
-    body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.7, max_tokens: 1600 })
+    // 注意：DeepSeek 的 flash / v4-pro 均为推理型模型，思维链会占用 token 预算。
+    // 切勿设置较小的 max_tokens（实测 1600 会导致输出被截断、JSON 不完整而解析失败），此处不传，用服务端默认值。
+    body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.7 })
   });
   if (!r.ok) throw new Error(provider + ':' + (await r.text()).slice(0, 200));
   const j = await r.json();
@@ -117,6 +119,8 @@ export default async function handler(req, res) {
     });
   } catch (e) {
     console.error('[generate] error:', e.message);
+    // 调试开关：body 里带 debug:true 时回传真实原因（前端不传，仅供内部排查）
+    if (body && body.debug === true) return res.status(500).json({ error: '生成失败，请稍后重试', detail: String(e.message).slice(0, 300) });
     return res.status(500).json({ error: '生成失败，请稍后重试' });
   }
 }
