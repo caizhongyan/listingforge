@@ -9,7 +9,29 @@
   var result = document.getElementById('result');
 
   var TOKEN_KEY = 'lf_token';
+  var PENDING_KEY = 'lf_pending';
   var lastResult = null; // 缓存最近一次生成结果，支付成功后重新渲染为已解锁态
+
+  // 跳转收银台前持久化当前输入与结果：支付回跳后页面重载，内存变量会丢失
+  function savePending() {
+    try {
+      sessionStorage.setItem(PENDING_KEY, JSON.stringify({
+        info: info.value, platform: platform.value, lang: lang.value, result: lastResult
+      }));
+    } catch (e) {}
+  }
+
+  function restorePending() {
+    var d = null;
+    try { d = JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null'); } catch (e) {}
+    if (!d || !d.result) return false;
+    info.value = d.info || '';
+    platform.value = d.platform || platform.value;
+    lang.value = d.lang || lang.value;
+    lastResult = d.result;
+    render(lastResult);
+    return true;
+  }
 
   function getToken() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } }
   function isUnlocked() { return !!getToken() || document.body.classList.contains('unlocked'); }
@@ -35,7 +57,7 @@
       try {
         var r = await fetch('/api/checkout');
         var j = await r.json();
-        if (j.checkout_url) { window.location.href = j.checkout_url; }
+        if (j.checkout_url) { savePending(); window.location.href = j.checkout_url; }
         else { pwStatus.textContent = '收银台暂不可用：' + (j.error || 'unknown'); t('checkout_error', { error: String(j.error || 'unknown').slice(0, 60) }); }
       } catch (e) {
         pwStatus.textContent = '网络错误，请重试'; t('checkout_error', { error: 'network' });
@@ -134,8 +156,16 @@
   if (getToken()) document.body.classList.add('unlocked');
   refreshUnlock();
   if (new URLSearchParams(location.search).get('paid') === '1') {
-    setStatus('支付成功，已解锁全部功能！马上生成你的第一条多语言 Listing 吧。', false);
+    if (restorePending()) {
+      setStatus('支付成功，已解锁全部内容！你的结果已恢复，可直接复制使用。', false);
+    } else {
+      setStatus('支付成功，已解锁全部功能！马上生成你的第一条多语言 Listing 吧。', false);
+    }
+    try { sessionStorage.removeItem(PENDING_KEY); } catch (e) {}
     t('purchase_return', {});
     try { history.replaceState({}, '', location.pathname); } catch (e) {}
+  } else if (isUnlocked() && restorePending()) {
+    // 已解锁用户中途返回（如从收银台直接退出），同样恢复上次结果
+    setStatus('已恢复上次生成的内容。', false);
   }
 })();
