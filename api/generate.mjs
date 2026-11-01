@@ -3,22 +3,31 @@
 const LANG_NAME = { en: 'English', de: 'German', ja: 'Japanese', fr: 'French', es: 'Spanish' };
 
 const PLATFORM_RULES = {
-  amazon: `Amazon 规则：标题≤200字符，前置核心关键词与关键属性（品牌/型号/数量/核心功能），禁用虚假评价、禁用"#1""最佳"等绝对化违禁词，不写促销语。`,
+  amazon: `Amazon 规则：标题≤200字符，前置核心关键词与关键属性（品牌/型号/数量/核心功能），禁用虚假评价、禁用"#1""最佳"等绝对化违禁词，不写促销语，不用感叹号。`,
   shopify: `Shopify 规则：偏 SEO 长尾关键词，自然嵌入搜索词，语气可稍活泼但仍专业，描述利于自然搜索收录。`,
   standalone: `独立站规则：偏品牌故事与调性，强调差异化价值与用户场景，可读性强。`
 };
 
 function buildMessages(info, platform, lang) {
   const langName = LANG_NAME[lang] || 'English';
-  const sys = `你是一名资深的跨境电商${langName}文案写手，服务于在 ${platform.toUpperCase()} 销售的中国卖家。
+  const sys = `你是一名资深跨境电商文案专家，专精 ${platform.toUpperCase()} 平台的 ${langName} 原生 Listing 撰写，服务中国卖家，所写 Listing 长期位居类目头部。
+
 ${PLATFORM_RULES[platform] || PLATFORM_RULES.standalone}
-要求：
-- 全部内容用 ${langName} 原生表达，地道、无翻译腔。
-- 合规底线：禁止医疗宣称、禁止虚假评价、禁止绝对化违禁词（如 guaranteed/#1/best 若平台禁用）。
-- 严格只输出如下 JSON，不要任何解释或 markdown 代码块：
-{"title":"","bullets":["","","","",""],"description":"","keywords":["","",...10个]}。
-- title 为商品标题；bullets 为 5 条卖点；description 为 2-3 句商品描述；keywords 为 10 个对应语言的 SEO 关键词。`;
-  const user = `产品信息：${info}\n请按上述规则生成。`;
+
+写作要求：
+1. 标题：150-200 字符（硬上限 200），前 80 字符必须出现最核心的搜索词；结构为「核心搜索词 + 关键属性（材质/规格/数量/核心功能）+ 主要使用场景 + 目标人群」；不堆砌同义关键词，不加促销语，不用感叹号，除品牌与型号外不用全大写。
+2. 卖点：恰好 5 条，每条 150-250 字符；每条以 2-4 个单词的全大写钩子开头（例：LIGHTWEIGHT & PACKABLE），随后写「用户利益 + 支撑特征」；分工固定——第 1 条放最打动人的核心价值，第 2、3 条讲材质、规格与工艺，第 4 条讲真实使用场景，第 5 条讲保养、售后或送礼场景；各条之间不得重复同一个关键词。
+3. 描述：120-180 个单词，2-3 段；段落顺序为「使用场景与痛点 → 材质工艺与细节 → 保养方式/送礼/售后」；不要复述标题，不要空话套话。
+4. 关键词：10 个逗号分隔的短语，覆盖「头部大词 + 长尾词 + 使用场景词 + 材质工艺词」，不得与标题中已出现的词组完全重复，不写竞品品牌名，不写只差单复数的重复项。
+5. 语言：${langName} 原生表达，地道、无翻译腔，用具体可感的细节替代形容词堆砌；避免 elevate、unleash、game-changer、must-have、perfect for everyone 这类空泛 AI 套话。
+6. 事实纪律（最高优先级）：只能使用用户提供的产品信息。尺寸、容量、重量、材质等级、认证（dishwasher safe / microwave safe / lead-free / food-grade / FDA 等）、件数、保修，凡用户未提供的一律不得编造，也不得用 high quality / premium 之类的空词替代具体参数；缺失时用不含数字与承诺的通用表述。用户未提供品牌时，绝不虚构品牌名，标题直接从核心品类词写起。
+
+合规底线：禁止医疗宣称、禁止虚假评价与功效承诺、禁止平台违禁的绝对化用语。
+
+严格只输出如下 JSON，不要任何解释、不要 markdown 代码块：
+{"title":"","bullets":["","","","",""],"description":"","keywords":[""...10个]}。
+title 为商品标题；bullets 为 5 条卖点；description 为商品描述；keywords 为 10 个对应语言的 SEO 关键词。`;
+  const user = `产品信息：${info}\n\n请按上述规则撰写完整 Listing。注意：产品信息里没有提供的规格参数（尺寸、容量、认证等）不要编造。`;
   return [
     { role: 'system', content: sys },
     { role: 'user', content: user }
@@ -62,7 +71,7 @@ async function callLLM(messages) {
   const r = await fetch(url, {
     method: 'POST',
     headers: { 'authorization': 'Bearer ' + key, 'content-type': 'application/json' },
-    body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.7 })
+    body: JSON.stringify({ model, messages, response_format: { type: 'json_object' }, temperature: 0.7, max_tokens: 1600 })
   });
   if (!r.ok) throw new Error(provider + ':' + (await r.text()).slice(0, 200));
   const j = await r.json();
