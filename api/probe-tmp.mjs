@@ -6,12 +6,11 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'no key' });
 
   const paths = [
-    '/v1/transactions?limit=1',
-    '/v1/transactions?order_id=ORD-1A194C498535AE13',
-    '/v1/transactions/ORD-1A194C498535AE13',
-    '/v1/subscriptions?limit=1',
-    '/v1/licenses?limit=1',
-    '/v1/checkouts?status=completed'
+    '/v1/transactions',
+    '/v1/transactions?page_size=1',
+    '/v1/transactions?page=1',
+    '/v1/checkouts',
+    '/v1/customers'
   ];
 
   const out = [];
@@ -22,7 +21,7 @@ export default async function handler(req, res) {
       try {
         const j = await r.json();
         if (Array.isArray(j)) shape = { array: j.length, keys: j[0] ? Object.keys(j[0]) : [] };
-        else if (j && typeof j === 'object') shape = { keys: Object.keys(j), nested: j.items ? { array: j.items.length, keys: j.items[0] ? Object.keys(j.items[0]) : [] } : undefined };
+        else if (j && typeof j === 'object') shape = { keys: Object.keys(j), msg: j.message || j.error, nested: j.items ? { array: j.items.length, keys: j.items[0] ? Object.keys(j.items[0]) : [] } : undefined };
       } catch (e) { shape = { parse: 'fail' }; }
       out.push({ path: p, status: r.status, shape });
     } catch (e) {
