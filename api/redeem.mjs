@@ -1,12 +1,22 @@
-// 订单号自助找回：客户换设备/清缓存后，凭 Creem 订单号重新签发解锁码
+// 自助找回：客户换设备/清缓存后，凭「付款邮箱」重新签发解锁码
+//
+// 2026-11-01 实测结论（决定了这里为何用邮箱而不是订单号）：
+//   Creem 公开 API v1 的实际形态是
+//     GET /v1/checkouts    → 只接受 checkout_id（收据上的 ORD-xxx 不是它，查不到）
+//     GET /v1/orders       → 该端点不存在（404）
+//     GET /v1/transactions → 只接受 transaction_id，无列表
+//     GET /v1/customers    → 接受 customer_id 或 email ✅
+//   因此订单号无法验证；邮箱是客户能自助提供、且服务端能核验的唯一凭据。
+//
 // 安全要点：
-//   1) 校验只在服务端做——Creem API Key 不下发前端
-//   2) 必须同时满足：订单可查到 + 状态为 paid/completed + 商品 ID 属于本产品
-//   3) 按 IP 做轻量频率限制，挡批量试探订单号
+//   1) Creem API Key 只在服务端使用，不下发前端
+//   2) 该 Creem 账号当前只有本产品一个（$5.99 一次性），因此「是本账号客户」等价于「购买过本产品」
+//      ⚠️ 一旦上线第二个产品，此假设失效，必须改为 webhook 落库后按订单核验
+//   3) 按 IP 限流，挡批量试探邮箱
 import { readJson } from './_llm.mjs';
 import { signToken } from './verify.mjs';
+import crypto from 'crypto';
 
-// 轻量限流：仅在单个函数实例内有效，足够挡住脚本级试探（无状态，不引数据库）
 const hits = new Map();
 const WINDOW = 10 * 60 * 1000;
 const MAX_HITS = 5;
@@ -22,7 +32,6 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' });
   const apiKey = process.env.CREEM_API_KEY;
   const apiBase = (process.env.CREEM_API_BASE || 'https://api.creem.io').replace(/\/$/, '');
-  const productId = process.env.CREEM_PRODUCT_ID;
   const secret = process.env.UNLOCK_SECRET || apiKey;
   if (!apiKey) return res.status(500).json({ error: '未配置 CREEM_API_KEY' });
 
@@ -30,59 +39,46 @@ export default async function handler(req, res) {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
   if (rateLimited(ip)) return res.status(429).json({ error: '尝试过于频繁，请 10 分钟后再试' });
 
-  const orderId = String(body.order_id || body.orderId || '').trim().replace(/^["'\s]+|["'\s]+$/g, '');
-  if (!/^[A-Za-z0-9_\-]{6,64}$/.test(orderId)) {
-    return res.status(400).json({ error: '订单号格式不正确，请从 Creem 付款收据邮件中完整复制' });
+  const email = String(body.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    return res.status(400).json({ error: '请填写购买时使用的邮箱' });
   }
 
-  // Creem 的订单查询端点存在多种可能形态，逐个探测（与 verify.mjs 同思路）
-  const candidates = [
-    `${apiBase}/v1/orders/${encodeURIComponent(orderId)}`,
-    `${apiBase}/v1/orders?order_id=${encodeURIComponent(orderId)}`,
-    `${apiBase}/v1/orders?id=${encodeURIComponent(orderId)}`
-  ];
-
-  const probeLog = [];
   let data = null;
-  for (const u of candidates) {
-    try {
-      const r = await fetch(u, { headers: { 'x-api-key': apiKey } });
-      probeLog.push(`${u.replace(apiBase, '')} → ${r.status}`);
-      if (r.ok) {
-        const j = await r.json();
-        const item = Array.isArray(j) ? j[0] : (Array.isArray(j.items) ? j.items[0] : j);
-        if (item && (item.status || item.order)) { data = item; break; }
-      }
-    } catch (e) { probeLog.push(`${u.replace(apiBase, '')} → err`); }
+  let httpStatus = null;
+  try {
+    const r = await fetch(`${apiBase}/v1/customers?email=${encodeURIComponent(email)}`, {
+      headers: { 'x-api-key': apiKey }
+    });
+    httpStatus = r.status;
+    if (r.ok) {
+      const j = await r.json();
+      data = Array.isArray(j) ? j[0] : (Array.isArray(j.items) ? j.items[0] : j);
+    }
+  } catch (e) {
+    return res.status(502).json({ error: '查询失败，请稍后重试' });
   }
 
-  if (!data) {
+  const customerId = data && (data.id || data.customer_id);
+  if (!customerId) {
     return res.status(404).json({
-      error: '未查到该订单，请核对订单号；如确认已付款请联系 support@skuwrite.com',
-      ...(body.debug === true ? { probes: probeLog } : {})
+      error: '未找到该邮箱的购买记录。请使用下单时填写的邮箱；仍有问题请联系 support@skuwrite.com',
+      ...(body.debug === true ? { httpStatus } : {})
     });
   }
 
-  const status = String(data.status || '').toLowerCase();
-  if (!['paid', 'completed'].includes(status)) {
-    return res.status(402).json({ error: '该订单尚未完成支付', status, ...(body.debug === true ? { probes: probeLog } : {}) });
-  }
-
-  // 商品归属校验：避免拿别的产品订单来解锁
-  const pid = (data.product && (data.product.id || data.product_id)) || data.product_id || '';
-  if (productId && pid && pid !== productId) {
-    return res.status(403).json({ error: '该订单不属于本产品', ...(body.debug === true ? { probes: probeLog } : {}) });
-  }
+  // 邮箱指纹入库留痕（不可逆），便于日后排查滥用
+  const fingerprint = crypto.createHash('sha256').update(email).digest('hex').slice(0, 12);
+  console.log('[redeem] recovered by email fp=' + fingerprint + ' customer=' + customerId);
 
   const token = signToken(
     {
-      order_id: orderId,
+      customer_id: customerId,
       recovered: true,
-      iat: Date.now(),
       exp: Date.now() + 1000 * 60 * 60 * 24 * 365
     },
     secret
   );
 
-  return res.status(200).json({ ok: true, token, ...(body.debug === true ? { probes: probeLog, status } : {}) });
+  return res.status(200).json({ ok: true, token, ...(body.debug === true ? { httpStatus, customer_id: customerId } : {}) });
 }
