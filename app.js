@@ -87,7 +87,7 @@
     var t0 = Date.now();
     var timer = setInterval(function () {
       var s = Math.round((Date.now() - t0) / 1000);
-      setStatus('AI 正在撰写 ' + platform.value + ' ' + lang.value + ' 文案… 已用 ' + s + ' 秒（通常需 10-25 秒）', false);
+      setStatus('AI 正在撰写 ' + platform.value + ' ' + lang.value + ' 文案… 已用 ' + s + ' 秒（通常需 20-40 秒，请不要关闭页面）', false);
     }, 1000);
     t('generate_click', { platform: platform.value, lang: lang.value });
     try {
